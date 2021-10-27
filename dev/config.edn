@@ -1,0 +1,4 @@
+{:email/sysadmin "chad@shorttrack.io"
+
+ :logging/on? true
+ :logging/levels #{:all}}
