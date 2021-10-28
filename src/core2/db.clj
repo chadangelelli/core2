@@ -1,5 +1,5 @@
 (ns core2.db
-  "Core2 Database connection"
+  "TODO: add docstring"
 
   {:author "Chad Angelelli"
    :added "0.1"}
@@ -66,7 +66,7 @@
       :xtdb/tx-log {:kv-store :ss/rocksdb}
       :xtdb/document-store {:kv-store :ss/rocksdb}
       :xtdb/index-store {:kv-store :ss/rocksdb}}))
-  (log/info "[Substrate] [OK] Database started"))
+  (log/info "[Core2] [OK] Database started"))
 
 (defn stop-db
   ""
@@ -75,4 +75,67 @@
   (try
     (.close node_)
     (catch Throwable t))
-  (log/info "[Substrate] [OK] Database stopped"))
+  (log/info "[Core2] [OK] Database stopped"))
+
+(defn restart-db
+  ""
+  {:added "0.1"}
+  []
+  (stop-db)
+  (start-db))
+
+(defn put
+  "Wraps xtdb.api/put with Core2 Data Event"
+  {:added "0.1"}
+  [{:keys [event]
+    {:keys [id] :as document} :document
+    :as args}]
+
+  (let [event (or event (make-data-event))
+        {:keys [query-error] :as tx
+         } (try
+             (xt/submit-tx node_ [[::xt/put document]])
+             (catch Throwable t
+               {:query-error (.getMessage t)}))]
+
+    (if query-error
+      (make-data-event-response
+       event
+       (err {:error/type :core2/query-error
+             :error/fatal? false
+             :error/message "Query error"
+             :error/data {:args args :query-error query-error}}))
+
+      ;;TODO: look into keeping things non-blocking/async
+      (let [_ (xt/await-tx node_ tx)
+            r (xt/entity (xt/db node_) id)]
+        (make-data-event-response
+         event
+         {:event/result r})))))
+
+(defn q
+  "Wraps xtdb.api/q with Core2 Data Event"
+  {:added "0.1"}
+  [query & [event]]
+  (let [event (or event (make-data-event))]
+    (let [{:keys [query-error] :as r
+           } (try
+               (xt/q (xt/db node_) query)
+
+               (catch java.lang.NullPointerException e
+                 {:query-error (str "Null pointer. Check that the "
+                                    "database is started and "
+                                    "accepting connections.")})
+
+               (catch Throwable t
+                 {:query-error (.getMessage t)}))]
+
+      (make-data-event-response
+       event
+       (if-not query-error
+         (when (seq r)
+           {:event/result r})
+         (err {:error/type :core2/query-error
+               :error/fatal? false
+               :error/message "Query error"
+               :error/data {:query query :query-error query-error}}))))))

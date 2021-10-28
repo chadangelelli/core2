@@ -39,7 +39,7 @@
 (defn set-schema!
   [{nm :name :as schema}]
   (if-let [e (v/validate valid-schema schema)]
-    (err {:error/type :core2/schema
+    (err {:error/type :core2/schema-error
           :error/message "Invalid schema"
           :error/data {:schema schema
                        :validation-error e}})
@@ -50,7 +50,7 @@
 (defn unset-schema!
   [schema-name]
   (if-not (get-schema (keyword schema-name))
-    (err {:error/type :core2/model
+    (err {:error/type :core2/model-error
           :error/message (str "Unknown schema '" schema-name "'")
           :error/data {:schema-name schema-name}})
     (do
@@ -84,28 +84,8 @@
            [:group/description {:optional true} string?]
            [:group/members [:vector int?]]])})
 
+;;TODO: set flag in config
 (do ; Set User/Group models automatically for security permissions
   (set-schema! User)
   (set-schema! Group)
   nil)
-
-(comment
-  (let [test-schemas
-        [{:name :Transaction
-          :description "A real estate transaction"
-          :validation :malli
-          :form (m/schema
-                 [:map
-                  [:address/street string?]
-                  [:address/city string?]
-                  [:address/state string?]
-                  [:address/zip string?]])}
-         {:name :Document
-          :description "A document"
-          :validation :malli
-          :form (m/schema
-                 [:map
-                  [:name string?]])}]]
-    (doseq [schema test-schemas]
-      (set-schema! schema)))
-  )
