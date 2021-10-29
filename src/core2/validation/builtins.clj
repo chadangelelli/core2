@@ -46,3 +46,6 @@
     [:fn
      {:error/message "Group permissions map cannot be empty"}
      #(> (count (keys %)) 0)]]))
+
+(comment
+  )

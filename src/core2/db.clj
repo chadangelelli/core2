@@ -88,13 +88,13 @@
   "Wraps xtdb.api/put with Core2 Data Event"
   {:added "0.1"}
   [{:keys [event]
-    {:keys [id] :as document} :document
+    {:keys [id] :as doc} :doc
     :as args}]
 
   (let [event (or event (make-data-event))
         {:keys [query-error] :as tx
          } (try
-             (xt/submit-tx node_ [[::xt/put document]])
+             (xt/submit-tx node_ [[::xt/put doc]])
              (catch Throwable t
                {:query-error (.getMessage t)}))]
 
