@@ -16,6 +16,7 @@
    [core2.validation.builtins :as vb]
    [core2.error :refer (err)]))
 
+;;TODO: finish grant, set-state
 (defn make-new-document
   ""
   {:added "0.1"}
@@ -47,32 +48,39 @@
           :error/message "Invalid create! arguments"
           :error/data {:args args :validation-error args-err}})
 
-    (let [form      (:form (model/get-schema schema))
-          model-err (not form)
-          user-err  (not user)
-          data-err  (validate form data)]
+    (if (and (= schema :User) (user/get-user (:user/email data)))
+      (err {:error/type :core2/validation-error
+            :error/fatal? false
+            :error/message (str "Cannot create duplicate User:"
+                                (:user/email data))
+            :error/data {:args args}})
 
-      (cond
-        user-err
-        (err {:error/type :core2/auth-error
-              :error/fatal? false
-              :error/message (str "Unknown user: " user)
-              :error/data {:args args}})
+      (let [form      (:form (model/get-schema schema))
+            model-err (not form)
+            user-err  (not user)
+            data-err  (validate form data)]
 
-        model-err
-        (err {:error/type :core2/model-error
-              :error/fatal? false
-              :error/message (str "Unknown schema: " schema)
-              :error/data {:args args}})
+        (cond
+          user-err
+          (err {:error/type :core2/auth-error
+                :error/fatal? false
+                :error/message (str "Unknown user: " user)
+                :error/data {:args args}})
 
-        data-err
-        (err {:error/type :core2/validation-error
-              :error/fatal? false
-              :error/message "Invalid data"
-              :error/data {:args args :validation-error data-err}})
+          model-err
+          (err {:error/type :core2/model-error
+                :error/fatal? false
+                :error/message (str "Unknown schema: " schema)
+                :error/data {:args args}})
 
-        ::else-api-create-call-is-valid
-        nil))))
+          data-err
+          (err {:error/type :core2/validation-error
+                :error/fatal? false
+                :error/message "Invalid data"
+                :error/data {:args args :validation-error data-err}})
+
+          ::else-api-create-call-is-valid
+          nil)))))
 
 (defn create!
   "Takes an argument map to create a document and
@@ -104,19 +112,52 @@
   []
   )
 
+(defn create-initial-user!
+  [{:keys [email] :as user}]
+
+  (if-let [args-err (validate (:form model/User) user)]
+    (err {:error/type :core2/args-error
+          :error/fatal? false
+          :error/message "Invalid user provided to create-initial-user!"
+          :error/data {:args user :validation-error args-err}})
+
+    (let [users-exist? (-> '{:find [?e] :where [[?e :core2/schema :User]]}
+                           db/q
+                           :event/result
+                           seq
+                           boolean)]
+      (if users-exist?
+        (err {:error/type :core2/auth-error
+              :error/fatal? false
+              :error/message "One or more users already exist."
+              :error/data {:args user}})
+
+        (let [uid (util/uuid)
+              doc (merge user
+                         {:xt/id uid
+                          :core2/schema :User
+                          :core2/owner uid
+                          :core2/perms-all #{uid}})]
+          (db/put {:doc doc}))))))
+
+(println
+ (create-initial-user! {:user/email "chad@shorttrack.io"
+                        :user/first_name "Chad"
+                        :user/last_name "Angelelli"}))
+
 (comment
 
-(time
- (clojure.pprint/pprint
-  (let [args {:user "chad@shorttrack.io"
-            :schema :User
-            :data {:user/first_name "Chris"
-                   :user/last_name "Hacker"
-                   :user/email "chris@shorttrack.io"}
-            :grant-user {"chad@shorttrack.io" #{:all}}
-              :set-state #{:hidden}}]
+  (time
+   (clojure.pprint/pprint
+    (let [args {:user "chad@shorttrack.io"
+                :schema :User
+                :data {:user/first_name "Chris"
+                       :user/last_name "Hacker"
+                       :user/email "chris@shorttrack.io"}
+                :grant-user {"chad@shorttrack.io" #{:all}}
+                :set-state #{:hidden}}]
 
-    ;; (make-new-document args)
-    (create! args))))
+      ;; (make-new-document args)
+      (create! args))))
 
   )
