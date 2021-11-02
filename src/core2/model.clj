@@ -8,8 +8,11 @@
 (def ^:private model_ (atom nil))
 
 (defn get-model
-  []
-  @model_)
+  ([] @model_)
+  ([pat]
+   (if (instance? java.util.regex.Pattern pat)
+     (into {} (filter (fn [[k v]] (re-find pat (name k))) @model_))
+     (get @model_ pat))) )
 
 (defn get-schema
   [schema-name]
