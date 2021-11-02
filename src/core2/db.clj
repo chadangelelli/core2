@@ -87,9 +87,7 @@
 (defn put
   "Wraps xtdb.api/put with Core2 Data Event"
   {:added "0.1"}
-  [{:keys [event]
-    {:keys [id] :as doc} :doc
-    :as args}]
+  [{:keys [event] {:keys [xt/id] :as doc} :doc :as args}]
 
   (let [event (or event (make-data-event))
         {:keys [query-error] :as tx

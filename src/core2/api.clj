@@ -214,6 +214,18 @@
                 :set-state #{:hidden}}]
       (create! args))))
 
+  (time
+   (clojure.pprint/pprint
+    (let [args {:as "chad@shorttrack.io"
+                :schema :User
+                :data {:user/first_name "Steve"
+                       :user/last_name "Hargraves"
+                       :user/email "steve@shorttrack.io"}
+                :grant-user {"chad@shorttrack.io" #{:all}
+                             "chris@shorttrack.io" #{:read :update}}
+                :set-state #{:hidden}}]
+      (create! args))))
+
   (println (apply str (repeat 3 "\n")))
   (clojure.pprint/pprint
    (q {:as "chad@shorttrack.io"
