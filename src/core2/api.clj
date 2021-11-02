@@ -24,7 +24,7 @@
   (keyword
    (format "core2/%s-%s"
            (case typ :user "upm" :group "gpm")
-           (str perm))))
+           (name perm))))
 
 (defn make-user-id-lookup
   [users]
@@ -53,6 +53,7 @@
      grant-user)))
 
 ;;TODO: imlement set-owner on create!
+;;TODO: implement grant-group on create!
 (defn make-new-document-permissions
   ""
   {:added "0.1"}
@@ -66,13 +67,8 @@
         id-lu     (make-user-id-lookup user-list)
         email-lu  (make-user-email-lookup user-list)
         perms     {:core2/upm-owner user}
-        perms     (make-grant-user-perms id-lu email-lu perms grant-user)
-
-        ]
-    {:___ID_LU___ id-lu
-     :___EMAIL_LU___ email-lu
-     :___PERMS___ perms}
-    ))
+        perms     (make-grant-user-perms id-lu email-lu perms grant-user)]
+    perms))
 
 ;;TODO: finish grant, set-state
 (defn make-new-document
@@ -151,24 +147,8 @@
       (db/make-data-event-response event err)
 
       (let [doc (make-new-document args*)
-            ;; res (db/put {:event event :doc doc})
-            res doc
-            ]
+            res (db/put {:event event :doc doc})]
         res))))
-
-  (println "\n\n\n")
-  (time
-   (clojure.pprint/pprint
-    (let [args {:user "chad@shorttrack.io"
-                :schema :User
-                :data {:user/first_name "Chris"
-                       :user/last_name "Hacker"
-                       :user/email "chris@shorttrack.io"}
-                :grant-user {"chad@shorttrack.io" #{:read :update :state}}
-                :set-state #{:hidden}}]
-
-      ;; (make-new-document args)
-      (create! args))))
 
 (defn update!
   ""
