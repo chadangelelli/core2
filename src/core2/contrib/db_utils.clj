@@ -29,7 +29,7 @@
             [xt-ks xt xt-max] (extract doc #":xt\/.*")
             doc (dissoc doc :xt/id)
 
-            [sys-ks sys sys-max] (extract doc #":ss\/.*")
+            [sys-ks sys sys-max] (extract doc #":core2\/.*")
             doc (apply dissoc doc sys-ks)
 
             [data-ks data data-max] (extract doc #".*")
