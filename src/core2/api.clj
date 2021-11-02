@@ -10,64 +10,11 @@
    [core2.db :as db]
    [core2.model :as model]
    [core2.users :as user]
+   [core2.api.permissions :as perms]
    [core2.utils :as util]
    [core2.validation :as v :refer (validate)]
    [core2.validation.builtins :as vb]
    [core2.error :refer (err)]))
-
-(def permissions #{:read :update :state :owner :all})
-
-;;TODO: validate input
-(defn make-perms-key
-  [typ perm]
-  (keyword
-   (format "core2/%s-%s"
-           (case typ :user "upm" :group "gpm")
-           (name perm))))
-
-(defn make-user-id-lookup
-  [users]
-  (into {} (for [{:keys [:user/email :xt/id]} (seq users)] [email id])))
-
-(defn make-user-email-lookup
-  [users]
-  (into {} (for [{:keys [:user/email :xt/id]} (seq users)] [id email])))
-
-(defn make-grant-user-perms
-  [id-lookup email-lookup perms grant-user]
-  (if-not perms
-    {}
-    (reduce
-     (fn [o* [u* p*]]
-       (let [user-id (if (v/valid-email? u*) (get id-lookup u*) u*)]
-         (merge
-          o*
-          (reduce (fn [o** p**]
-                    (let [k (make-perms-key :user p**)
-                          v (conj (or (get o* k) #{}) user-id)]
-                      (assoc o** k v)))
-                  o*
-                  p*))))
-     perms
-     grant-user)))
-
-;;TODO: imlement set-owner on create!
-;;TODO: implement grant-group on create!
-(defn make-new-document-permissions
-  ""
-  {:added "0.1"}
-  [{:keys [user grant-user grant-group set-owner] :as args}]
-
-  (let [user-list (-> (filter identity
-                              (concat (keys grant-user)
-                                      (keys grant-group)
-                                      [set-owner]))
-                      (user/get-users [:xt/id :user/email]))
-        id-lu     (make-user-id-lookup user-list)
-        email-lu  (make-user-email-lookup user-list)
-        perms     {:core2/upm-owner user}
-        perms     (make-grant-user-perms id-lu email-lu perms grant-user)]
-    perms))
 
 ;;TODO: finish grant, set-state
 (defn make-new-document
@@ -78,12 +25,12 @@
   (let [id (or id (util/uuid))]
     (merge data
            {:xt/id id, :core2/schema schema}
-           (make-new-document-permissions args))))
+           (perms/make-new-document-permissions args))))
 
 (def valid-create-args
   (m/schema
    [:map {:closed true}
-    [:user                         vb/valid-user-target]
+    [:as                           vb/valid-user-target]
     [:schema                       vb/valid-schema]
     [:data                         map?]
     [:grant-user  {:optional true} vb/valid-user-perms-map]
@@ -91,7 +38,7 @@
     [:set-state   {:optional true} vb/valid-state-set]]))
 
 (defn invalidate-create-args
-  [{:keys [user schema data] :as args}]
+  [{:keys [as schema data] :as args}]
 
   (if-let [args-err (validate valid-create-args args)]
     (err {:error/type :core2/args-error
@@ -108,14 +55,14 @@
 
       (let [form      (:form (model/get-schema schema))
             model-err (not form)
-            user-err  (not user)
+            user-err  (not as)
             data-err  (validate form data)]
 
         (cond
           user-err
           (err {:error/type :core2/auth-error
                 :error/fatal? false
-                :error/message (str "Unknown user: " user)
+                :error/message (str "Unknown user: " as)
                 :error/data {:args args}})
 
           model-err
@@ -136,11 +83,11 @@
 (defn create!
   "Creates a document. Returns Core2 Data Event."
   {:added "0.1"}
-  [{:keys [user] :as args}]
+  [{:keys [as] :as args}]
 
   (let [event   (db/make-data-event)
-        user-id (:xt/id (user/get-user user [:xt/id]))
-        args*   (assoc args :user user-id)]
+        user-id (:xt/id (user/get-user as [:xt/id]))
+        args*   (assoc args :as user-id)]
 
     (if-let [err (invalidate-create-args args*)]
       (db/make-data-event-response event err)
@@ -171,13 +118,14 @@
   (m/schema
    [:map {:closed true}
     [:q any?]
-    [:as vb/valid-user-target]]))
+    [:as vb/valid-user-target]
+    [:print-query? {:optional true} boolean?]]))
 
 (defn q
   "Runs a query with Core2 API permissions injected.
   Returns Core2 Data Event."
   {:added "0.1"}
-  [{:keys [as q] :as args}]
+  [{:keys [as q print-query?] :as args}]
 
   (if-let [args-err (validate valid-q-args args)]
     (err {:error/type :core2/args-error
@@ -205,6 +153,14 @@
                         where
                         logic-vars)
                 q* (assoc q :where where*)]
+            (when print-query?
+              (println "\n\n\\===================================")
+              (println "<==")
+              (println "   " q)
+              (println "==>")
+              (println "   " q*)
+              (println "/===================================\n\n")
+              )
             (db/q q*))))
 
       (err {:error/type :core2/auth-error
@@ -236,8 +192,8 @@
               doc (merge user
                          {:xt/id uid
                           :core2/schema :User
-                          :core2/owner uid
-                          :core2/perms-all #{uid}})]
+                          :core2/upm-owner uid
+                          :core2/upm-all #{uid}})]
           (db/put {:doc doc}))))))
 
 (comment
@@ -249,15 +205,13 @@
 
   (time
    (clojure.pprint/pprint
-    (let [args {:user "chad@shorttrack.io"
+    (let [args {:as "chad@shorttrack.io"
                 :schema :User
                 :data {:user/first_name "Chris"
                        :user/last_name "Hacker"
                        :user/email "chris@shorttrack.io"}
                 :grant-user {"chad@shorttrack.io" #{:all}}
                 :set-state #{:hidden}}]
-
-      ;; (make-new-document args)
       (create! args))))
 
   (println (apply str (repeat 3 "\n")))

@@ -26,10 +26,18 @@
     [:fn {:error/message "Invalid schema"} #(boolean (model/get-schema %))]]))
 
 (def valid-user-perms
-  (m/schema (perms/make-valid-perms "Invalid user permissions")))
+  (m/schema
+   [:set
+    [:fn
+     {:error/message "Invalid user permissions"}
+     (fn valid-user-perms* [v] (boolean (some perms/permissions [v])))]]))
 
 (def valid-group-perms
-  (m/schema (perms/make-valid-perms "Invalid group permissions")))
+  (m/schema
+   [:set
+    [:fn
+     {:error/message "Invalid group permissions"}
+     (fn valid-group-perms* [v] (boolean (some perms/permissions [v])))]]))
 
 (def valid-user-perms-map
   (m/schema
