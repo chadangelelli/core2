@@ -4,7 +4,6 @@
    :added "0.1"}
 
   (:require
-
    [xtdb.api :as xt]
    [malli.core :as m]
 
@@ -162,23 +161,23 @@
   []
   )
 
+(defn get-q-logic-vars
+  [q]
+  (distinct (re-seq #"\?[a-z\-_]+" (str q))))
+
 ;;TODO: validate datalog query
 ;;TODO: enforce logic vars only start with "?"
 (def valid-q-args
   (m/schema
    [:map {:closed true}
     [:q any?]
-    [:user vb/valid-user-target]]))
-
-(defn get-q-logic-vars
-  [q]
-  (distinct (re-seq #"\?[a-z\-_]+" (str q))))
+    [:as vb/valid-user-target]]))
 
 (defn q
   "Runs a query with Core2 API permissions injected.
   Returns Core2 Data Event."
   {:added "0.1"}
-  [{:keys [user q] :as args}]
+  [{:keys [as q] :as args}]
 
   (if-let [args-err (validate valid-q-args args)]
     (err {:error/type :core2/args-error
@@ -187,7 +186,7 @@
           :error/data {:args args :validation-error args-err}})
 
     (if-let [{user-id :xt/id :as user*
-              } (user/get-user user [:xt/id :user/email])]
+              } (user/get-user as [:xt/id :user/email])]
 
       (let [logic-vars (get-q-logic-vars q)]
         (if-not (seq logic-vars)
@@ -210,7 +209,7 @@
 
       (err {:error/type :core2/auth-error
             :error/fatal? false
-            :error/message (str "Unknown user provided to q function: " user)
+            :error/message (str "Unknown user provided to q function: " as)
             :error/data {:args args}}))))
 
 (defn create-initial-user!
@@ -263,7 +262,7 @@
 
   (println (apply str (repeat 3 "\n")))
   (clojure.pprint/pprint
-   (q {:user "chad@shorttrack.io"
+   (q {:as "chad@shorttrack.io"
        :q '{:find [(pull ?e [*])]
             :where [[?e :core2/schema :User]]}}))
 
