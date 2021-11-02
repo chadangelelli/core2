@@ -51,7 +51,7 @@
     (if (and (= schema :User) (user/get-user (:user/email data)))
       (err {:error/type :core2/validation-error
             :error/fatal? false
-            :error/message (str "Cannot create duplicate User:"
+            :error/message (str "Cannot create duplicate User: "
                                 (:user/email data))
             :error/data {:args args}})
 
@@ -112,6 +112,57 @@
   []
   )
 
+;;TODO: validate datalog query
+;;TODO: enforce logic vars only start with "?"
+(def valid-q-args
+  (m/schema
+   [:map {:closed true}
+    [:q any?]
+    [:user vb/valid-user-target]]))
+
+(defn get-q-logic-vars
+  [q]
+  (distinct (re-seq #"\?[a-z\-_]+" (str q))))
+
+(defn q
+  "Runs a query with Core2 API permissions injected.
+  Returns Core2 Data Event."
+  {:added "0.1"}
+  [{:keys [user q] :as args}]
+
+  (if-let [args-err (validate valid-q-args args)]
+    (err {:error/type :core2/args-error
+          :error/fatal? false
+          :error/message "Invalid query arguments"
+          :error/data {:args args :validation-error args-err}})
+
+    (if-let [{user-id :xt/id :as user*
+              } (user/get-user user [:xt/id :user/email])]
+
+      (let [logic-vars (get-q-logic-vars q)]
+        (if-not (seq logic-vars)
+          (err {:error/type :core2/validation-error
+                :error/fatal? false
+                :error/message "No valid logic vars found in query"
+                :error/data {:args args}})
+
+          (let [{:keys [find where]} q
+                where* (reduce
+                        #(conj
+                          %1
+                          (list 'or
+                                [(symbol (name %2)) :core2/perms-all user-id]
+                                [(symbol (name %2)) :core2/perms-read user-id]))
+                        where
+                        logic-vars)
+                q* (assoc q :where where*)]
+            (db/q q*))))
+
+      (err {:error/type :core2/auth-error
+            :error/fatal? false
+            :error/message (str "Unknown user provided to q function: " user)
+            :error/data {:args args}}))))
+
 (defn create-initial-user!
   [{:keys [email] :as user}]
 
@@ -140,12 +191,12 @@
                           :core2/perms-all #{uid}})]
           (db/put {:doc doc}))))))
 
-(println
- (create-initial-user! {:user/email "chad@shorttrack.io"
-                        :user/first_name "Chad"
-                        :user/last_name "Angelelli"}))
-
 (comment
+
+  (println
+   (create-initial-user! {:user/email "chad@shorttrack.io"
+                          :user/first_name "Chad"
+                          :user/last_name "Angelelli"}))
 
   (time
    (clojure.pprint/pprint
@@ -160,4 +211,10 @@
       ;; (make-new-document args)
       (create! args))))
 
-  )
+  (println (apply str (repeat 3 "\n")))
+  (clojure.pprint/pprint
+   (q {:user "chad@shorttrack.io"
+       :q '{:find [(pull ?e [*])]
+            :where [[?e :core2/schema :User]]}}))
+
+  ); /comment
