@@ -11,7 +11,7 @@
 5. [Data Events](#data-events)
 6. [API](#api)
 
-Core2 is thin wrapper library around the amazing [XTDB](https://xtdb.com/) with some added functionality.
+Core2 is a thin wrapper library around the amazing [XTDB](https://xtdb.com/) with some added functionality.
 
 **Core2 is not:**
 
