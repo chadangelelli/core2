@@ -66,7 +66,8 @@
       :xtdb/tx-log {:kv-store :ss/rocksdb}
       :xtdb/document-store {:kv-store :ss/rocksdb}
       :xtdb/index-store {:kv-store :ss/rocksdb}}))
-  (log/info "[Core2] [OK] Database started"))
+  (log/info "[Core2] [OK] Database started")
+  node_)
 
 (defn stop-db
   ""
