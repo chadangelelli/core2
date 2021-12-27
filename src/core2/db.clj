@@ -22,34 +22,33 @@
 
 (def DataEvent
   {:event/id nil
-   :event/start-time nil
-   :event/end-time nil
    :event/logged? false
    :event/log-id nil
-   :event/result nil})
+   :event/result nil
+   :event/metrics {:start-time nil :end-time nil}})
 
 (defn make-data-event
   ""
   {:added "0.1"}
   [& [m]]
   (merge DataEvent m {:event/id (util/uuid)
-                      :event/start-time (System/nanoTime)}))
+                      :event/metrics {:start-time (System/nanoTime)}}))
 
 (defn make-data-event-response
   ""
   {:added "0.1"}
-  [{:keys [:event/start-time] :as event} & [m]]
+  [{{:keys [start-time] :as metrics} :event/metrics :as event} & [m]]
   (let [end-time      (System/nanoTime)
         total-time    (- end-time start-time)
         total-time-ms (/ (double total-time) 1000000.0)
         total-time-s  (/ (double total-time-ms) 1000.0)
-        event         (merge
-                       event
-                       m
-                       {:event/end-time                end-time
-                        :event/total-time              total-time
-                        :event/total-time-milliseconds total-time-ms
-                        :event/total-time-seconds      total-time-s})]
+        metrics       (merge
+                        metrics
+                        {:end-time                end-time
+                         :total-time              total-time
+                         :total-time-milliseconds total-time-ms
+                         :total-time-seconds      total-time-s}) 
+        event         (merge event m {:event/metrics metrics})]
 
     ;;TODO: implement logging
 
