@@ -16,37 +16,44 @@
   prismatic/schema                    {:mvn/version "1.1.12"}
 
   ;; ...................................................... db
-  com.xtdb/xtdb-core                  {:mvn/version "1.19.0"}
-  com.xtdb/xtdb-rocksdb               {:mvn/version "1.19.0"}
+  com.xtdb/xtdb-core                  {:mvn/version "1.20.0"}
+  com.xtdb/xtdb-rocksdb               {:mvn/version "1.20.0"}
 
   ;; ...................................................... misc.
   clojurewerkz/quartzite              {:mvn/version "2.1.0"}
 
   } ;// end :deps
 
- :paths ["src"]
+ :paths ["src" "dev"]
 
  :aliases
- {:test
+ {:repl {:extra-deps {com.bhauman/rebel-readline {:mvn/version "0.1.4"}
+                      org.clojure/tools.nrepl {:mvn/version "0.2.12"}
+                      cider/cider-nrepl {:mvn/version "0.22.4"}}
+         :main-opts ["-m" "repl"]}
+
+  :test
   {:extra-paths ["test"]
    :extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.0"
                                                       :git/sha "b3fd0d2"}}
    :main-opts ["-m" "cognitect.test-runner"]
    :exec-fn cognitect.test-runner.api/test}
 
-  :cider-clj
-  {:extra-deps {cider/cider-nrepl {:mvn/version "0.22.4"}}
-   :jvm-opts ["-Xmx256m"]
-   :main-opts ["-m" "nrepl.cmdline" "-p" "50291"]}
+  ;; :cider-clj
+  ;; {:extra-deps {cider/cider-nrepl {:mvn/version "0.22.4"}}
+  ;;  :jvm-opts ["-Xmx256m"]
+  ;;  :main-opts ["-m" "nrepl.cmdline" "-p" "50291"]}
+  ;; 
+  ;; :jar
+  ;; {:replace-deps
+  ;;  {com.github.seancorfield/depstar {:mvn/version "2.1.278"}}
+  ;;  :exec-fn hf.depstar/jar
+  ;;  :exec-args {}}
+  ;; 
+  ;; :docs
+  ;; {:extra-deps {docist/docist {:mvn/version "0.1.0-alpha"}}
+  ;;  :extra-paths ["dev/tools/src"]
+  ;;  :exec-fn st.tools/make-docs!
+  ;;  :exec-args {}}
 
-  :jar
-  {:replace-deps
-   {com.github.seancorfield/depstar {:mvn/version "2.1.278"}}
-   :exec-fn hf.depstar/jar
-   :exec-args {}}
-
-  :docs
-  {:extra-deps {docist/docist {:mvn/version "0.1.0-alpha"}}
-   :extra-paths ["dev/tools/src"]
-   :exec-fn st.tools/make-docs!
-   :exec-args {}}}}
+  }}
