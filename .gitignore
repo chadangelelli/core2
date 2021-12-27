@@ -32,3 +32,4 @@ profiles.clj
 __db
 .#*.clj
 .#*.cljs
+.rebel_readline_history
