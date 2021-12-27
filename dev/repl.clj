@@ -5,8 +5,6 @@
 
 (defn -main []
   (println "nrepl server at port 40000")
-  (nrepl-server/start-server :port 40000
-                            ;; :handler cider-nrepl-handler
-                             )
+  (nrepl-server/start-server :port 40000)
   (rebel/-main)
   (System/exit 0))
